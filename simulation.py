@@ -2,9 +2,9 @@ import pickle
 import random
 from blackjack_multi import BlackjackGameMulti, Player
 from agent import QLearningAgent
-from gui import plot_training_rewards
+from gui import plot_training_rewards_moving_average
 
-def train(agent: QLearningAgent, episodes: int = 50000):
+def train(agent: QLearningAgent, episodes: int = 100000):
     """
     Train the Q-learning agent by running simulated blackjack episodes.
     """
@@ -51,8 +51,8 @@ def train(agent: QLearningAgent, episodes: int = 50000):
 if __name__ == "__main__":
     actions = ["hit", "stick"]
     agent = QLearningAgent(actions, alpha=0.1, gamma=0.9, epsilon=0.1)
-    episodes = 50000
+    episodes = 100000
     trained_agent, rewards_history = train(agent, episodes=episodes)
     with open("q_table.pkl", "wb") as f:
         pickle.dump({"Q": trained_agent.Q, "episodes": episodes}, f)
-    plot_training_rewards(rewards_history)
+    plot_training_rewards_moving_average(rewards_history, window_size=1000)

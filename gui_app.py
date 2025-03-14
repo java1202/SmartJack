@@ -1,9 +1,8 @@
 import tkinter as tk
-from tkinter import messagebox
+from tkinter import messagebox, simpledialog
 from blackjack_multi import BlackjackGameMulti, Player, categorize_balance
 from agent import QLearningAgent
 
-# Utility function to convert card value to a string representation.
 def card_to_str(card: int) -> str:
     if card == 11:
         return "A"
@@ -15,7 +14,7 @@ def card_to_str(card: int) -> str:
 class BlackjackGUI:
     def __init__(self, master):
         self.master = master
-        master.title("AI-Powered Blackjack")
+        master.title("SmartJack: AI-Powered Blackjack")
         self.game = BlackjackGameMulti(players=[Player("Human", balance=100, is_human=True),
                                                  Player("AI_Player", balance=100, is_human=False)])
         try:
@@ -31,6 +30,7 @@ class BlackjackGUI:
             self.ai_agent = QLearningAgent(actions=["hit", "stick"], epsilon=0)
             self.enable_suggestion = False
 
+        self.round_over = False  # New flag to track if round is finished
         self.create_widgets()
         self.start_new_round()
 
@@ -43,6 +43,9 @@ class BlackjackGUI:
 
         self.balance_label = tk.Label(self.master, text="Your Balance: ", font=("Helvetica", 12))
         self.balance_label.pack(pady=5)
+
+        self.bet_label = tk.Label(self.master, text="Bet this round: ", font=("Helvetica", 12))
+        self.bet_label.pack(pady=5)
 
         self.suggestion_label = tk.Label(self.master, text="", font=("Helvetica", 12), fg="blue")
         self.suggestion_label.pack(pady=5)
@@ -58,13 +61,18 @@ class BlackjackGUI:
         self.restart_button.pack(pady=10)
 
     def update_display(self):
-        dealer_cards = " ".join([card_to_str(card) for card in self.game.dealer.hand])
+        # Show only the dealer's visible (up) card if the round is still in progress.
+        if not self.round_over:
+            dealer_cards = card_to_str(self.game.dealer_visible)
+        else:
+            dealer_cards = " ".join([card_to_str(card) for card in self.game.dealer.hand])
         self.dealer_label.config(text=f"Dealer's Hand: {dealer_cards}")
         human = self.game.players[0]
         player_cards = " ".join([card_to_str(card) for card in human.hand])
         self.player_label.config(text=f"Your Hand: {player_cards} (Total: {self.game.get_hand_value(human.hand)})")
-        self.balance_label.config(text=f"Your Balance: {human.balance}")
-        if self.enable_suggestion:
+        self.balance_label.config(text=f"Your Balance: {human.balance} (Initial: {human.starting_balance})")
+        self.bet_label.config(text=f"Your Bet This Round: {human.bet}")
+        if self.enable_suggestion and not self.round_over:
             state = self.game.get_state(human)
             suggestion = self.ai_agent.select_action(state)
             self.suggestion_label.config(text=f"AI Suggestion: {suggestion}")
@@ -81,22 +89,32 @@ class BlackjackGUI:
 
     def stick(self):
         self.game.dealer_turn()
+        self.round_over = True  # Mark round as over so full dealer hand is shown
         human = self.game.players[0]
+        dealer_total = self.game.get_hand_value(self.game.dealer.hand)
+        dealer_cards = " ".join([card_to_str(card) for card in self.game.dealer.hand])
         results = self.game.settle_bets()
         result = results.get("Human", "lose")
+        # Build a detailed result message showing the dealer's hand and total.
+        result_text = f"Dealer's Hand: {dealer_cards} (Total: {dealer_total})\n"
         if result == "win":
-            messagebox.showinfo("Result", "You win!")
+            result_text += "You win!"
         elif result == "draw":
-            messagebox.showinfo("Result", "It's a draw!")
+            result_text += "It's a draw!"
         else:
-            messagebox.showinfo("Result", "You lose!")
+            result_text += "You lose!"
+        messagebox.showinfo("Result", result_text)
         self.end_round()
 
     def start_new_round(self):
         human = self.game.players[0]
-        # For simplicity, ask for bet amount via a dialog.
+        self.round_over = False  # Reset the flag for a new round
+        # Prompt for bet amount with a dialog (default 10, maximum equal to current balance).
         bet = 10
-        human.balance = max(human.balance, 100)
+        bet_input = simpledialog.askinteger("Bet", f"Enter your bet amount (Current Balance: {human.balance}):",
+                                              initialvalue=10, minvalue=1, maxvalue=human.balance)
+        if bet_input is not None:
+            bet = bet_input
         self.game.place_bets(bet_amount=bet)
         self.game.deal_initial()
         self.update_display()

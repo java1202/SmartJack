@@ -14,6 +14,7 @@ class Player:
     def __init__(self, name: str, balance: int, is_human: bool = False) -> None:
         self.name = name
         self.balance = balance
+        self.starting_balance = balance  # store initial balance for reference
         self.is_human = is_human
         self.hand: List[int] = []
         self.bet = 0
@@ -49,6 +50,8 @@ class BlackjackGameMulti:
         return self.deck.pop()
 
     def place_bets(self, bet_amount: int = 10) -> None:
+        """Each player places a bet. The bet amount is subtracted from their balance.
+           If the player's balance is lower than the bet, they bet whatever they have."""
         for player in self.players:
             if player.balance >= bet_amount:
                 player.bet = bet_amount
@@ -58,6 +61,7 @@ class BlackjackGameMulti:
                 player.balance = 0
 
     def deal_initial(self) -> None:
+        """Reset hands and deal two cards to each player and the dealer."""
         for player in self.players:
             player.reset_hand()
         self.dealer.reset_hand()
@@ -78,21 +82,31 @@ class BlackjackGameMulti:
         return 11 in hand and self.get_hand_value(hand) <= 21
 
     def get_state(self, player: Player) -> Tuple[Any, ...]:
+        """
+        Returns a tuple representing the player's state for RL:
+          - Player's hand total
+          - Dealer's visible card
+          - Whether the player has a usable Ace
+          - Player’s risk category (based on remaining balance)
+          - Bet fraction (current bet relative to starting balance)
+        """
         total = self.get_hand_value(player.hand)
         usable = self.has_usable_ace(player.hand)
-        balance_cat = categorize_balance(player.balance)
-        return (total, self.dealer_visible, usable, balance_cat)
+        risk_category = categorize_balance(player.balance)
+        bet_fraction = player.bet / player.starting_balance if player.starting_balance > 0 else 0
+        return (total, self.dealer_visible, usable, risk_category, bet_fraction)
 
     def player_turn(self, player: Player, agent: Any = None) -> None:
+        """Process a single player’s turn with detailed descriptors."""
         while True:
             state = self.get_state(player)
             if player.is_human:
                 if agent is not None:
                     suggestion = agent.select_action(state)
                     print(f"AI Suggestion: {suggestion}")
+                print(f"{player.name} -- Starting Balance: {player.starting_balance}, Current Balance: {player.balance}, Bet this round: {player.bet}")
                 action = input(
-                    f"{player.name}, your hand: {player.hand} (total: {self.get_hand_value(player.hand)}), "
-                    f"Dealer shows: {self.dealer_visible}. Hit or stick? "
+                    f"Your hand: {player.hand} (total: {self.get_hand_value(player.hand)}), Dealer shows: {self.dealer_visible}. Hit or stick? "
                 ).strip().lower()
                 if action not in ["hit", "stick"]:
                     print("Invalid action. Please choose 'hit' or 'stick'.")
@@ -113,11 +127,13 @@ class BlackjackGameMulti:
                 print("Unknown action, please try again.")
 
     def dealer_turn(self) -> None:
+        """Dealer draws cards until reaching a total of at least 17."""
         while self.get_hand_value(self.dealer.hand) < 17:
             self.dealer.hand.append(self.deal_card())
         print(f"Dealer's hand: {self.dealer.hand} (total: {self.get_hand_value(self.dealer.hand)})")
 
     def settle_bets(self) -> dict:
+        """Compare each player's hand to the dealer and update balances accordingly."""
         dealer_total = self.get_hand_value(self.dealer.hand)
         results = {}
         for player in self.players:

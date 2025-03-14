@@ -18,11 +18,14 @@ def test_hand_value_adjusts_ace(game):
     value = game.get_hand_value(hand)
     assert value == 13
 
-def test_get_state_contains_risk(game):
-    # Verify that get_state returns a tuple including the risk category.
+def test_get_state_contains_bet(game):
+    # Verify that get_state returns a tuple including the bet fraction.
     player = game.players[0]
     player.hand = [10, 5]
+    player.bet = 10  # assume a bet of 10 was placed
     state = game.get_state(player)
-    # Expected structure: (player_total, dealer_visible, usable_ace, balance_category)
-    assert len(state) == 4
+    # Expected structure: (player_total, dealer_visible, usable_ace, risk_category, bet_fraction)
+    assert len(state) == 5
     assert isinstance(state[3], str)
+    # Check that bet_fraction is correctly computed; starting_balance is 100, bet=10 -> fraction=0.1
+    assert state[4] == pytest.approx(0.1)

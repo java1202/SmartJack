@@ -3,8 +3,10 @@ from blackjack_multi import BlackjackGameMulti, Player
 from agent import QLearningAgent
 
 def play_multiplayer_round(game: BlackjackGameMulti, ai_suggester=None) -> None:
+    human = game.players[0]
+    print(f"Your starting balance is: {human.balance} (Initial: {human.starting_balance})")
     try:
-        bet_amount = int(input("Enter your bet amount: "))
+        bet_amount = int(input("Enter your bet amount for this round: "))
     except ValueError:
         bet_amount = 10
     game.place_bets(bet_amount=bet_amount)
@@ -18,7 +20,7 @@ def play_multiplayer_round(game: BlackjackGameMulti, ai_suggester=None) -> None:
         print(f"{name}: {result}")
     print("\nCurrent balances:")
     for player in game.players:
-        print(f"{player.name}: {player.balance}")
+        print(f"{player.name}: {player.balance} (Initial: {player.starting_balance})")
     print("-" * 40)
 
 def interactive_main() -> None:
@@ -55,9 +57,9 @@ def training_mode() -> None:
     game = BlackjackGameMulti(players=[sim_human, ai_player])
     ai_agent = QLearningAgent(actions=["hit", "stick"], alpha=0.1, gamma=0.9, epsilon=0.1)
     try:
-        episodes = int(input("Enter number of training episodes: "))
+        episodes = int(input("Enter number of training episodes (e.g., 100000): "))
     except ValueError:
-        episodes = 5000
+        episodes = 100000
     rewards_history = []
     import random
     for i in range(episodes):
@@ -95,10 +97,9 @@ def training_mode() -> None:
         if i % (max(episodes // 10, 1)) == 0:
             print(f"Episode {i}: reward = {reward}")
     with open("q_table.pkl", "wb") as f:
-        import pickle
         pickle.dump({"Q": ai_agent.Q, "episodes": episodes}, f)
-    from gui import plot_training_rewards
-    plot_training_rewards(rewards_history)
+    from gui import plot_training_rewards_moving_average
+    plot_training_rewards_moving_average(rewards_history, window_size=1000)
 
 def main() -> None:
     mode = input("Choose mode (interactive/training): ").strip().lower()
