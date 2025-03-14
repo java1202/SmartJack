@@ -1,1 +1,3 @@
 # SmartJack
+
+testing git connection
