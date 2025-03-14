@@ -25,7 +25,7 @@
 1. **Clone the Repository:**
 
    ```bash
-   git clone https://github.com/yourusername/SmartJack.git
+   git clone https://github.com/java1202/SmartJack.git
    cd SmartJack
 
 2. **Create & Activate a Virtual Environment:**
